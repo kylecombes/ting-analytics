@@ -1,9 +1,5 @@
-#!/usr/bin/python3
-
-import argparse
 import pandas as pd
-import re
-import os
+from pdf_parser import parse_pdf
 
 
 class DataReader:
@@ -33,7 +29,7 @@ class DataReader:
     def __init__(self):
         self.data = {}
 
-    def load_data(self, filename, data_type):
+    def load_data_from_csv(self, filename, data_type):
         """
         Reads data from a file.
         :param filename: the name of the file
@@ -42,6 +38,10 @@ class DataReader:
         :type data_type: string
         """
         self.data[data_type] = pd.read_csv(filename)
+
+    def read_bill_summary_pdf(self, filename, template=None):
+        return parse_pdf(filename, template)
+
 
     def get_usage_breakdown(self, data_type):
         """
@@ -95,16 +95,3 @@ class DataReader:
         else:
             totals[user] += addition
 
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('filename')
-    args = parser.parse_args()
-    filename = args.filename
-    directory, filename = os.path.split(filename)
-    dr = DataReader()
-    suffix = re.search('\d*\..*', filename).group(0)
-    for data_type in DataReader.BILL_COMPONENTS:
-        filename = os.path.join(directory, data_type+suffix)
-        dr.load_data(filename, data_type)
-    dr.print_usage_breakdown()
