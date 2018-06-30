@@ -17,7 +17,7 @@ def parse_pdf(filename, template=None):
             pandas_options = {
                 'header': region['header']
             }
-            res[region['name']] = read_pdf(filename, spreadsheet=True, area=area, pandas_options=pandas_options)
+            res[region['name']] = read_pdf(filename, spreadsheet=True, area=area, pandas_options=pandas_options, silent=True)
 
     else:
         res = read_pdf(filename)

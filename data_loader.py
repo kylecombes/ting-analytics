@@ -42,8 +42,7 @@ class DataReader:
     def read_bill_summary_pdf(self, filename, template=None):
         return parse_pdf(filename, template)
 
-
-    def get_usage_breakdown(self, data_type):
+    def _calculate_usage_breakdown(self, data_type):
         """
         Calculates the usage by device/user.
         :param data_type: MESSAGES | MINUTES | DATA
@@ -71,22 +70,48 @@ class DataReader:
 
         return totals, surcharges
 
-    def print_usage_breakdown(self):
+    def get_usage_breakdown(self):
+        res = {}
         # Talk time
-        tt, scs = self.get_usage_breakdown(DataReader.MINUTES)
-        print('Minutes usage breakdown:')
-        for device, usage in tt.items():
-            print('\t{}: {} minutes \t\tSurcharges: ${}'.format(device, usage, scs[device]))
+        tt, scs = self._calculate_usage_breakdown(DataReader.MINUTES)
+        res['talk'] = {
+            'usage': tt,
+            'surcharges': scs,
+        }
+
         # Messages
-        msgs, scs = self.get_usage_breakdown(DataReader.MESSAGES)
-        print('Messages usage breakdown:')
-        for device, usage in msgs.items():
-            print('\t{}: {} messages \t\tSurcharges: ${}'.format(device, usage, scs[device]))
+        msgs, scs = self._calculate_usage_breakdown(DataReader.MESSAGES)
+        res['text'] = {
+            'usage': msgs,
+            'surcharges': scs,
+        }
+
         # Data usage
-        data, scs = self.get_usage_breakdown(DataReader.DATA)
+        data, scs = self._calculate_usage_breakdown(DataReader.DATA)
+        res['data'] = {
+            'usage': data,
+            'surcharges': scs,
+        }
+
+        return res
+
+    def print_usage_breakdown(self):
+        usage = self.get_usage_breakdown()
+
+        print('Minutes usage breakdown:')
+        talk = usage['talk']
+        for device, usage in talk['usage'].items():
+            print('\t{}: {} minutes \t\tSurcharges: ${}'.format(device, usage, talk['surcharges'][device]))
+
+        text = usage['text']
+        print('Messages usage breakdown:')
+        for device, usage in usage['text'].items():
+            print('\t{}: {} messages \t\tSurcharges: ${}'.format(device, usage, text['surcharges'][device]))
+
+        data = usage['data']
         print('Data usage breakdown:')
-        for device, usage in msgs.items():
-            print('\t{}: {} MB \t\tSurcharges: ${}'.format(device, usage, scs.get(device, 0)))
+        for device, usage in usage['data'].items():
+            print('\t{}: {} MB \t\tSurcharges: ${}'.format(device, usage, data['surcharges'].get(device, 0)))
 
     @staticmethod
     def _add_usage(totals, user, addition):
