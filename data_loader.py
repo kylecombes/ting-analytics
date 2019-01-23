@@ -39,8 +39,8 @@ class DataReader:
         """
         self.data[data_type] = pd.read_csv(filename)
 
-    def read_bill_summary_pdf(self, filename, template=None):
-        return parse_pdf(filename, template)
+    def read_bill_summary_pdf(self, filename):
+        return parse_pdf(filename)
 
     def _calculate_usage_breakdown(self, data_type):
         """

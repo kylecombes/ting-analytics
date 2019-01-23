@@ -1,20 +1,20 @@
 #!/usr/bin/python3
 
 import argparse
-import re
 import os
 from data_loader import DataReader
 
 
-def process_bill(filename):
-    directory, filename = os.path.split(filename)
+def process_bill(period, directory):
     dr = DataReader()
-    suffix = re.search('\d*\..*', filename).group(0)
+    directory = os.path.expanduser(directory)
+    file_path_template = os.path.join(directory, 'usage', '{}{}.csv')
     for data_type in DataReader.BILL_COMPONENTS:
-        filename = os.path.join(directory, data_type + suffix)
+        filename = file_path_template.format(data_type, period)
         dr.load_data_from_csv(filename, data_type)
 
-    dfs = dr.read_bill_summary_pdf('bill-{}.pdf'.format(suffix[:-4]), 'tabula-template.json')
+    pdf_path = os.path.join(directory, 'bill-pdfs', '{}.pdf'.format(period))
+    dfs = dr.read_bill_summary_pdf(pdf_path)
     if dfs is None:
         print('ERROR: Could not resolve contents of bill PDF.')
         exit(1)
@@ -24,17 +24,22 @@ def process_bill(filename):
 
     res = calculate_cost_per_line(dr.get_usage_breakdown(), costs, fees)
 
-    print()
     total = 0
     for line, line_total in res.items():
-        print('Line {}: ${:.2f}'.format(line, line_total))
         total += line_total
 
-    print('Tallied total: ${:.2f}\t Actual total: {}'.format(total, dfs['summary'].iat[2,0]))
-
+    return {
+        'usage': res,
+        'total-tallied': total,
+        'total-read': dfs['summary'].iat[2, 0],
+    }
 
 def calculate_cost_per_line(usage, costs, fees):
-    res = {line: 0 for line in usage['data']['usage'].keys()}
+    lines = set()
+    for usage_type in usage.values():
+        for line in list(usage_type['surcharges'].keys()):
+            lines.add(line)
+    res = {line: 0 for line in lines}
 
     # Look at talk time usage
     account_for_usage(usage['talk'], costs['Minutes'], res)
@@ -46,7 +51,7 @@ def calculate_cost_per_line(usage, costs, fees):
     account_for_usage(usage['data'], costs['Megabytes'], res)
 
     # Add on fees and cost for the line
-    num_lines = len(usage['text']['usage'])
+    num_lines = len(lines)
     fees_per_line = fees / num_lines
     cost_for_line = costs['Devices'] / num_lines
     for line in res.keys():
@@ -67,7 +72,7 @@ def account_for_usage(usage_item, total_cost, running_totals):
     total_usage = sum(usage_by_line.values())
 
     for line, line_usage in usage_by_line.items():
-        running_totals[line] += (line_usage / total_usage) * total_cost + surcharges[line]
+        running_totals[line] += (line_usage / total_usage) * total_cost + surcharges.get(line, 0)
 
 
 def resolve_total_base_cost(df):
@@ -80,6 +85,31 @@ def resolve_total_base_cost(df):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('filename')
+    parser.add_argument('directory')
     args = parser.parse_args()
-    process_bill(args.filename)
+    data_dir = os.path.expanduser(args.directory)
+    periods = [bill[:-4] for bill in os.listdir(os.path.join(data_dir, 'bill-pdfs'))]
+    good_processes = []
+    problem_processes = []
+    for period in periods:
+        # try:
+            res = process_bill(period, data_dir)
+            if res['total-tallied'] != res['total-read']:
+                problem_processes.append((period, res))
+            else:
+                good_processes.append((period, res))
+        # except Exception as e:
+        #     problem_processes.append((period, e))
+
+    for period, process_res in good_processes:
+        print('Bill', period)
+        print(process_res['usages'])
+        print()
+
+    print()
+    print('Failed processes:')
+    print()
+    for period, process_res in problem_processes:
+        print('Bill', period)
+        print(process_res)
+        print()
