@@ -1,0 +1,26 @@
+[
+  {
+    "page": 1,
+    "extraction_method": "guess",
+    "x1": 26.775,
+    "x2": 580.635,
+    "y1": 187.8075,
+    "y2": 320.9175,
+    "width": 549.27,
+    "height": 128.52,
+    "header": "infer",
+    "name": "usage"
+  },
+  {
+    "page": 1,
+    "extraction_method": "guess",
+    "x1": 525.5550000000001,
+    "x2": 585.225,
+    "y1": 522.8775,
+    "y2": 597.0825,
+    "width": 59.67,
+    "height": 74.205,
+    "header": null,
+    "name": "summary"
+  }
+]

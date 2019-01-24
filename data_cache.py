@@ -9,7 +9,7 @@ class DataCache:
         """
         self.cache_dir = Path(cache_dir) if (cache_dir and cache_dir is not Path) else cache_dir
 
-    def add_file_if_necessary(self, filename, url, session, subdirectory=None):
+    def fetch_if_necessary(self, filename, url, session, subdirectory=None):
         directory = (self.cache_dir / subdirectory) if subdirectory else self.cache_dir
         file_path = directory / filename
 

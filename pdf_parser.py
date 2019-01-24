@@ -4,13 +4,12 @@ import os
 
 
 def parse_pdf(filename):
-
     if not os.path.exists(filename):
         raise FileNotFoundError('Could not find {}'.format(filename))
 
     templates = _load_templates()
 
-    for template in templates:
+    for idx, template in enumerate(templates):
         res = {}
         for region in template:
             area = region['area']
@@ -18,10 +17,18 @@ def parse_pdf(filename):
                 'header': region['header']
             }
             res[region['name']] = read_pdf(filename, spreadsheet=True, area=area, pandas_options=pandas_options)
-        if len(res) > 0:
+
+        # Check if parsing was successful with this template
+        if res and res['summary'] is not None and res['usage'] is not None and len(res['summary'].index) == 3 and len(res['usage'].index) >= 4 and \
+                __get_nan_count(res['summary']) == 0 and __get_nan_count(res['usage']) == 0:
+            res['template-used'] = idx
             return res
 
     return None
+
+
+def __get_nan_count(df):
+    return int(df.isna().sum().get(0))
 
 
 def _load_templates():

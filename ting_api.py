@@ -40,7 +40,6 @@ class TingApi:
 
         return json.loads(login_response.text)
 
-
     def get_current_usage_details(self):
         response = self.session.get('https://ting.com/json/account/get_account_usage_details')
         if response.status_code == 200:
@@ -83,7 +82,7 @@ class TingApi:
             sleep(0.3)
             if r['success'] == 1:
                 filename = '{}{}.csv'.format(usage_type, period_id)
-                self.cache.add_file_if_necessary(filename, url, self.session, 'usage')
+                self.cache.fetch_if_necessary(filename, url, self.session, 'usage')
             else:
                 print('Requesting {}{}.csv generation failed'.format(usage_type, period_id))
 
@@ -129,13 +128,11 @@ if __name__ == '__main__':
     ting = TingApi(cache)
     ting.connect(...)
 
-    # hist = ting.get_current_usage_details()
-
     bills = ting.get_billing_history(filter_by_types=['bill'])
 
     for bill in bills:
         print('Downloading deets for bill', bill.period_id)
-        cache.add_file_if_necessary(bill.period_id + '.pdf', bill.pdf_url, ting.session, 'bill-pdfs')
+        cache.fetch_if_necessary(bill.period_id + '.pdf', bill.pdf_url, ting.session, 'bill-pdfs')
         ting.get_detailed_usage(bill.period_id)
 
 
