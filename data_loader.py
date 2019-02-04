@@ -62,10 +62,12 @@ class DataReader:
                 DataReader._add_usage(totals, user, 1)
                 DataReader._add_usage(surcharges, user, surcharge)
         else:  # Everything else has a quantity associated with each entry
+            usage_key = 'Duration (min)' if data_type == DataReader.MINUTES else 'Kilobytes'
             for index, row in data.iterrows():
                 user = row[device_id_column]
+                usage = row[usage_key]
                 surcharge = row['Surcharges ($)']
-                DataReader._add_usage(totals, user, 1)
+                DataReader._add_usage(totals, user, usage)
                 DataReader._add_usage(surcharges, user, surcharge)
 
         return totals, surcharges

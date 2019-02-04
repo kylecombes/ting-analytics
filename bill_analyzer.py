@@ -59,7 +59,7 @@ class BillAnalyzer(Thread):
         # Look at text message usage
         self.account_for_usage(usage['text'], costs['Messages'], res)
 
-        # Look at data usage
+        # Look at data usage (in kilobytes)
         self.account_for_usage(usage['data'], costs['Megabytes'], res)
 
         # Add on fees and cost for the line
