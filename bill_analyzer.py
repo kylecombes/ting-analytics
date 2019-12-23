@@ -106,6 +106,7 @@ if __name__ == '__main__':
     parser.add_argument('directory')
     args = parser.parse_args()
     data_dir = os.path.expanduser(args.directory)
+    # Extract the period names by dropping the '.pdf' file extensions
     periods = [bill[:-4] for bill in os.listdir(os.path.join(data_dir, 'bill-pdfs'))]
     good_processes = []
     problem_processes = []
@@ -136,12 +137,20 @@ if __name__ == '__main__':
 
         t.join()  # FIXME: Probably will crash sometimes
 
-    print('Successfully proceed bills:')
+    # Get all phone numbers
+    numbers = set()
+    for _, process_res in good_processes:
+        numbers = numbers.union(set(process_res['usage'].keys()))
+
+    print('Successfully processed bills:')
     totals = dict()
-    data = {}
+    data = {'periods': []}
     for period, process_res in good_processes:
+        data['periods'].append(period)
         print_result(period, process_res)
-        for number, share in process_res['usage'].items():
+        for number in numbers:
+            share = process_res['usage'].get(number, 0)
+
             if number not in totals:
                 data[number] = [share]
                 totals[number] = share
