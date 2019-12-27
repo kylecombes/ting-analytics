@@ -1,21 +1,20 @@
 #!/usr/bin/python3
-
-import argparse
-import pandas as pd
 import os
-import threading
-from threading import Thread, Lock
+from threading import Thread
 from data_loader import DataReader
-from queue import deque
 
 
 class BillAnalyzer(Thread):
 
-    def __init__(self, directory, period, callback):
+    def __init__(self, directory, period, callback, template_dir=None):
         Thread.__init__(self)
         self.directory = os.path.expanduser(directory)
         self.period = period
         self.callback = callback
+        if template_dir is not None:
+            self.template_dir = template_dir
+        else:
+            self.template_dir = os.path.join(os.getcwd(), 'tabula-templates')
 
     def run(self):
         dr = DataReader()
@@ -25,7 +24,7 @@ class BillAnalyzer(Thread):
             dr.load_data_from_csv(filename, data_type)
 
         pdf_path = os.path.join(self.directory, 'bill-pdfs', '{}.pdf'.format(self.period))
-        dfs = dr.read_bill_summary_pdf(pdf_path)
+        dfs = dr.read_bill_summary_pdf(pdf_path, self.template_dir)
         if dfs is None:
             print('ERROR: Could not resolve contents of bill PDF {}.'.format(self.period))
             self.callback(self.period, None)
@@ -84,99 +83,11 @@ class BillAnalyzer(Thread):
         for line, line_usage in usage_by_line.items():
             running_totals[line] += (line_usage / total_usage) * total_cost + surcharges.get(line, 0)
 
-    def resolve_total_base_cost(self, df):
+    @staticmethod
+    def resolve_total_base_cost(df):
         costs = {}
         for idx, row in df.iterrows():
             cost_name = row[0]
             costs[cost_name] = float(row[2][1:])
         return costs
 
-
-def print_result(period, result):
-    print('Bill', period)
-    if result:
-        print(result['usage'])
-        if 'template-used' in result:
-            print('Used template', result['template-used'])
-    print()
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('directory')
-    args = parser.parse_args()
-    data_dir = os.path.expanduser(args.directory)
-    # Extract the period names by dropping the '.pdf' file extensions
-    periods = [bill[:-4] for bill in os.listdir(os.path.join(data_dir, 'bill-pdfs'))]
-    good_processes = []
-    problem_processes = []
-
-    console_lock = Lock()
-
-    def bill_processed(period, result):
-        console_lock.acquire()
-        if result and (round(result['total-tallied']*100))/100 == result['total-read']:
-            good_processes.append((period, result))
-        else:
-            problem_processes.append((period, result))
-
-        print_result(period, result)
-        console_lock.release()
-
-    q = deque()
-    for period in periods:
-        q.append(BillAnalyzer(data_dir, period, bill_processed))
-
-    thread_count = 4
-    while len(q) > 0:
-        while threading.active_count() - 1 < thread_count:  # Ignore main thread
-            if len(q) == 0:
-                break
-            t = q.popleft()
-            t.start()
-
-        t.join()  # FIXME: Probably will crash sometimes
-
-    # Get all phone numbers
-    numbers = set()
-    for _, process_res in good_processes:
-        numbers = numbers.union(set(process_res['usage'].keys()))
-
-    print('Successfully processed bills:')
-    totals = dict()
-    data = {'periods': []}
-    for period, process_res in good_processes:
-        data['periods'].append(period)
-        print_result(period, process_res)
-        for number in numbers:
-            share = process_res['usage'].get(number, 0)
-
-            if number not in totals:
-                data[number] = [share]
-                totals[number] = share
-            else:
-                data[number].append(share)
-                totals[number] += share
-
-    max_num_records = max([len(x) for x in data.values()])
-    for number, records in data.items():
-        num_records = len(records)
-        if num_records < max_num_records:
-            x = [0 for _ in range(max_num_records - num_records)]
-            x.extend(records)
-            data[number] = x
-
-    df = pd.DataFrame(data=data)
-    writer = pd.ExcelWriter('output.xlsx')
-    df.to_excel(writer, 'Sheet1')
-    writer.save()
-
-    if len(problem_processes) > 0:
-        print()
-        print('Failed processes:')
-        print()
-        for period, process_res in problem_processes:
-            print_result(period, process_res)
-
-    print('Billing shares:')
-    print(totals)

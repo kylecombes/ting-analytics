@@ -33,3 +33,5 @@ class DataCache:
         response = session.get(url, allow_redirects=True)
         open(str(output_path), 'wb').write(response.content)
 
+    def file_exists(self, filename):
+        return (self.cache_dir / filename).exists()

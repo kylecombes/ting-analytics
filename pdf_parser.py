@@ -3,11 +3,14 @@ import json
 import os
 
 
-def parse_pdf(filename):
+def parse_pdf(filename, template_dir=None):
     if not os.path.exists(filename):
         raise FileNotFoundError('Could not find {}'.format(filename))
 
-    templates = _load_templates()
+    if template_dir is None:
+        template_dir = os.path.dirname(filename)
+
+    templates = _load_templates(template_dir)
 
     for idx, template in enumerate(templates):
         res = {}
@@ -31,8 +34,7 @@ def __get_nan_count(df):
     return int(df.isna().sum().get(0))
 
 
-def _load_templates():
-    template_dir = os.path.expanduser('~/ting-analytics/tabula-templates')
+def _load_templates(template_dir):
     template_filenames = os.listdir(template_dir)
 
     templates = []

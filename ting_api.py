@@ -1,8 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import json
-from data_cache import DataCache
-from pathlib import Path
+import os
 from time import sleep
 
 
@@ -71,9 +70,12 @@ class TingApi:
 
         return res
 
-    def get_detailed_usage(self, period_id):
+    def get_detailed_usage_if_necessary(self, period_id):
         url = 'https://ting.com/json/account/usage_csv?download=1'
         for usage_type in ['minutes', 'messages', 'megabytes']:
+            filename = '{}{}.csv'.format(usage_type, period_id)
+            if self.cache.file_exists(os.path.join('usage', filename)):
+                continue
             r = self.session.post(
                 'https://ting.com/json/account/usage_csv',
                 data={'period_id': period_id, 'type': usage_type}
@@ -81,7 +83,6 @@ class TingApi:
             r = json.loads(r.text)
             sleep(0.3)
             if r['success'] == 1:
-                filename = '{}{}.csv'.format(usage_type, period_id)
                 self.cache.fetch_if_necessary(filename, url, self.session, 'usage')
             else:
                 print('Requesting {}{}.csv generation failed'.format(usage_type, period_id))
@@ -119,20 +120,3 @@ class TingCredit(TingPayment):
 
     def __str__(self):
         return 'Credit for ${:.2f} on {} (URL: {})'.format(self.amount, self.date, self.url)
-
-
-if __name__ == '__main__':
-
-    cache_dir = Path.home() / 'ting-data'
-    cache = DataCache(cache_dir)
-    ting = TingApi(cache)
-    ting.connect(...)
-
-    bills = ting.get_billing_history(filter_by_types=['bill'])
-
-    for bill in bills:
-        print('Downloading deets for bill', bill.period_id)
-        cache.fetch_if_necessary(bill.period_id + '.pdf', bill.pdf_url, ting.session, 'bill-pdfs')
-        ting.get_detailed_usage(bill.period_id)
-
-
