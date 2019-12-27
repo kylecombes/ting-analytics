@@ -1,3 +1,4 @@
 pandas
 tabula-py
 bs4
+openpyxl
