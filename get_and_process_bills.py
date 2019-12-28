@@ -14,8 +14,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument('directory')
 parser.add_argument('username')
 parser.add_argument('password')
+parser.add_argument('-t', '--threads', type=int, default=os.cpu_count(),
+                    help='number of threads to use when parsing invoice PDFs')
 args = parser.parse_args()
 data_dir = os.path.expanduser(args.directory)
+thread_count = args.threads
 
 if not args.username or not args.password:
     print('Please specify your Ting account username and password.')
@@ -70,9 +73,9 @@ q = deque()
 for period in periods:
     q.append(BillAnalyzer(data_dir, period, bill_processed))
 
-thread_count = 4
 while len(q) > 0:
     t = None
+    print('Processing invoice PDFs on {} threads...'.format(thread_count))
     while threading.active_count() - 1 < thread_count:  # Ignore main thread
         if len(q) == 0:
             break
