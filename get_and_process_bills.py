@@ -27,8 +27,10 @@ ting = TingApi(cache)
 ting.connect(args.username, args.password)
 
 bills = ting.get_billing_history(filter_by_types=['bill'])
+period_id_to_bill_map = {}
 
 for bill in bills:
+    period_id_to_bill_map[bill.period_id] = bill
     print('Downloading bill details', bill.period_id)
     cache.fetch_if_necessary(bill.period_id + '.pdf', bill.pdf_url, ting.session, 'bill-pdfs')
     ting.get_detailed_usage_if_necessary(bill.period_id)
@@ -81,17 +83,19 @@ while len(q) > 0:
         t.join()
 
 # Get all phone numbers
-numbers = set()
+phone_numbers = set()
 for _, process_res in good_processes:
-    numbers = numbers.union(set(process_res['usage'].keys()))
+    phone_numbers = phone_numbers.union(set(process_res['usage'].keys()))
 
 print('Successfully processed bills:')
 totals = dict()
-data = {'periods': []}
+data = {'date': [], 'total': []}
 for period, process_res in good_processes:
-    data['periods'].append(period)
+    bill = period_id_to_bill_map[period]
+    data['date'].append(bill.date)
+    data['total'].append(bill.amount)
     print_result(period, process_res)
-    for number in numbers:
+    for number in phone_numbers:
         share = process_res['usage'].get(number, 0)
 
         if number not in totals:
@@ -101,16 +105,8 @@ for period, process_res in good_processes:
             data[number].append(share)
             totals[number] += share
 
-max_num_records = max([len(x) for x in data.values()])
-for number, records in data.items():
-    num_records = len(records)
-    if num_records < max_num_records:
-        x = [0 for _ in range(max_num_records - num_records)]
-        x.extend(records)
-        data[number] = x
-
 df = pd.DataFrame(data=data)
-writer = pd.ExcelWriter('output.xlsx')
+writer = pd.ExcelWriter(os.path.join(data_dir, 'Ting usage.xlsx'))
 df.to_excel(writer, 'Sheet1')
 writer.save()
 
