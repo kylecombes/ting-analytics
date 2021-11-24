@@ -18,20 +18,28 @@ class BillAnalyzer(Thread):
 
     def run(self):
         dr = DataReader()
-        file_path_template = os.path.join(self.directory, 'usage', '{}{}.csv')
+        file_path_template = os.path.join(self.directory, '{}{}.csv')
         for data_type in DataReader.BILL_COMPONENTS:
             filename = file_path_template.format(data_type, self.period)
             dr.load_data_from_csv(filename, data_type)
 
-        pdf_path = os.path.join(self.directory, 'bill-pdfs', '{}.pdf'.format(self.period))
-        dfs = dr.read_bill_summary_pdf(pdf_path, self.template_dir)
-        if dfs is None:
-            print('ERROR: Could not resolve contents of bill PDF {}.'.format(self.period))
-            self.callback(self.period, None)
-            return
-
-        costs = self.resolve_total_base_cost(dfs['usage'])
-        fees = float(dfs['summary'].iat[1, 0][1:])
+        print('Usage for period', self.period)
+        breakdown = dr.get_usage_breakdown()
+        usage_by_num = {}
+        for category, details in breakdown.items():
+            for item, deets in details.items():
+                if item != 'usage':
+                    continue
+                for num, usage in deets.items():
+                    if num not in usage_by_num:
+                        usage_by_num[num] = {}
+                    usage_by_num[num][category] = usage
+        lines = sorted(usage_by_num.keys())
+        for line in lines:
+            print(line)
+            for category, tot in usage_by_num[line].items():
+                print(f'\t{category}: {tot}')
+        return
 
         res = self.calculate_cost_per_line(dr.get_usage_breakdown(), costs, fees)
 

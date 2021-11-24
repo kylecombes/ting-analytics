@@ -12,37 +12,20 @@ from bill_analyzer import BillAnalyzer
 
 parser = argparse.ArgumentParser()
 parser.add_argument('directory')
-parser.add_argument('username')
-parser.add_argument('password')
+# parser.add_argument('username')
+# parser.add_argument('password')
 parser.add_argument('-t', '--threads', type=int, default=os.cpu_count(),
                     help='number of threads to use when parsing invoice PDFs')
 args = parser.parse_args()
 data_dir = os.path.expanduser(args.directory)
 thread_count = args.threads
 
-if not args.username or not args.password:
-    print('Please specify your Ting account username and password.')
-
-
-print('Downloading data to', data_dir)
-cache = DataCache(data_dir)
-ting = TingApi(cache)
-ting.connect(args.username, args.password)
-
-bills = ting.get_billing_history(filter_by_types=['bill'])
-period_id_to_bill_map = {}
-
-for bill in bills:
-    period_id_to_bill_map[bill.period_id] = bill
-    print('Downloading bill details', bill.period_id)
-    cache.fetch_if_necessary(bill.period_id + '.pdf', bill.pdf_url, ting.session, 'bill-pdfs')
-    ting.get_detailed_usage_if_necessary(bill.period_id)
-
-print('All bills downloaded.')
 print('Processing bills...')
 
 # Extract the period names by dropping the '.pdf' file extensions
-periods = [bill[:-4] for bill in os.listdir(os.path.join(data_dir, 'bill-pdfs'))]
+bills = list(Path(data_dir).glob('minutes*.csv'))
+periods = [bill.name[7:-4] for bill in bills]
+print('Periods:', periods)
 good_processes = []
 problem_processes = []
 
@@ -93,20 +76,21 @@ for _, process_res in good_processes:
 print('Successfully processed bills:')
 totals = dict()
 data = {'date': [], 'total': []}
-for period, process_res in good_processes:
-    bill = period_id_to_bill_map[period]
-    data['date'].append(bill.date)
-    data['total'].append(bill.amount)
-    print_result(period, process_res)
-    for number in phone_numbers:
-        share = process_res['usage'].get(number, 0)
-
-        if number not in totals:
-            data[number] = [share]
-            totals[number] = share
-        else:
-            data[number].append(share)
-            totals[number] += share
+print(good_processes)
+# for period, process_res in good_processes:
+#     bill = period_id_to_bill_map[period]
+#     data['date'].append(bill.date)
+#     data['total'].append(bill.amount)
+#     print_result(period, process_res)
+#     for number in phone_numbers:
+#         share = process_res['usage'].get(number, 0)
+#
+#         if number not in totals:
+#             data[number] = [share]
+#             totals[number] = share
+#         else:
+#             data[number].append(share)
+#             totals[number] += share
 
 df = pd.DataFrame(data=data)
 writer = pd.ExcelWriter(os.path.join(data_dir, 'Ting usage.xlsx'))

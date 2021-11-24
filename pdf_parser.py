@@ -19,10 +19,11 @@ def parse_pdf(filename, template_dir=None):
             pandas_options = {
                 'header': region['header']
             }
-            res[region['name']] = read_pdf(filename, spreadsheet=True, area=area, pandas_options=pandas_options)
+            res[region['name']] = read_pdf(filename, area=area, pandas_options=pandas_options)
 
+        print(res)
         # Check if parsing was successful with this template
-        if res and res['summary'] is not None and res['usage'] is not None and len(res['summary'].index) == 3 and len(res['usage'].index) >= 4 and \
+        if res and res['summary'] is not None and res['usage'] is not None and len(res['summary']) >= 3 and len(res['usage'].index) >= 4 and \
                 __get_nan_count(res['summary']) == 0 and __get_nan_count(res['usage']) == 0:
             res['template-used'] = idx
             return res
